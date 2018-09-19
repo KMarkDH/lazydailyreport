@@ -1,31 +1,9 @@
 var archive = require("./archive")
-var fs = require("fs");
 var nodemailer = require('nodemailer');
 var smtpTransport = require('nodemailer-smtp-transport');
+var dbhelper = require("./databasehelper")
+
 var terminal_p = require('child_process');
-
-var assets_path = archive.workspace + "/logs/"
-
-function wirte_to(file_path, text, callback) {
-    fs.open(file_path, "a", 0644, function (e, fd) {
-        if (e) throw e;
-        fs.write(fd, text + ";", function (e) {
-            if (e) throw e;
-            callback(text);
-            fs.closeSync(fd);
-        })
-    });
-}
-
-function read_from(file_path, callback) {
-    fs.readFile(file_path, function (err, data) {
-        if (err) {
-            return console.error(err);
-        }
-
-        callback(data.toString());
-    });
-}
 
 function is_last_work_day() {
     var today = new Date();
@@ -99,86 +77,62 @@ function execute_command(command, succ_callback, fail_callback) {
     });
 }
 
-function read_file_sync(path) {
-    return fs.readFileSync(path).toString();
-}
-
 function read_todays_list(callback) {
-    var str = get_data() + ":\n";
     if (false == is_last_work_day()) {
-        var done_path = assets_path + "done_" + get_data() + ".txt";
-        var todo_path = assets_path + "todolist.txt";
+        
+        dbhelper.getDoneListToday(function(list){
+            var str = get_data() + ":\n";
+            var counter = 1;
 
-        execute_command(
-            "touch " + done_path + "&& touch " + todo_path,
-            function (succ) {
-                var i = 1;
-                str += "今日工作\n";
-                var done_list = read_file_sync(done_path).split(";");
-                done_list.forEach(function (sub) {
-                    if (sub.toString().length > 0) {
-                        str += i + "." + sub.toString() + '\n';
-                        i++;
-                    }
-                });
-
-                str += "明日计划\n";
-                i = 1;
-                var todo_list = read_file_sync(todo_path).split(";");
-                todo_list.forEach(function (sub) {
-                    if (sub.toString().length > 0) {
-                        str += i + "." + sub.toString() + '\n';
-                        i++;
-                    }
-                });
-
-                callback(str);
-            },
-            function (err) {
-                console.error(err);
+            str += "今日工作:\n";
+            list.forEach(function(element){
+                str += (counter++) + "." + element.assignment + "\n";
             });
-    } else {
-        var touch_list = "";
-        var todo_path = assets_path + "todolist.txt";
-        for (var i = 0; i < 7; ++i) {
-            touch_list += 'touch ' + assets_path + "done_" + get_first_day_of_week(i) + ".txt";
-            touch_list += '&&';
-        }
-        touch_list += 'touch ' + todo_path;
 
-        execute_command(
-            touch_list,
-            function (succ) {
-                str += "本周工作\n";
-                var _i = 1;
+            dbhelper.getTodoList(function(list){
+                var max = 3;
+                counter = 1;
+                str += "明日计划:\n";
 
-                for (var i = 0; i < 7; ++i) {
-                    var done_path = assets_path + "done_" + get_first_day_of_week(i) + ".txt";
-                    var done_list = read_file_sync(done_path).split(";");
-                    done_list.forEach(function (sub) {
-                        if (sub.toString().length > 0) {
-                            str += _i + "." + sub.toString() + '\n';
-                            _i++;
-                        }
-                    });
-                }
-
-                str += "下周计划\n";
-                var i = 1;
-                var todo_list = read_file_sync(todo_path).split(";");
-                todo_list.forEach(function (sub) {
-                    if (sub.toString().length > 0) {
-                        str += i + "." + sub.toString() + '\n';
-                        i++;
+                list.forEach(function(element){
+                    if (counter <= max) {
+                        str += (counter++) + "." + element.assignment + "\n";
                     }
                 });
 
                 callback(str);
-            },
-            function (err) {
-                console.error(err);
-            }
-        )
+            });
+        });
+    } else {
+
+        var daylist = [];
+        for (var i = 0; i < 7; ++i) {
+            daylist[i] = get_first_day_of_week(i);
+        }
+
+        dbhelper.getDoneListofDays(daylist, function(list){
+            var str = get_data() + ":\n";
+            var counter = 1;
+
+            str += "本周工作:\n";
+            list.forEach(function(element){
+                str += (counter++) + "." + element.assignment + "\n";
+            });
+
+            dbhelper.getTodoList(function(list){
+                var max = 3;
+                counter = 1;
+                str += "下周计划:\n";
+
+                list.forEach(function(element){
+                    if (counter <= max) {
+                        str += (counter++) + "." + element.assignment + "\n";
+                    }
+                });
+
+                callback(str);
+            });
+        });
     }
 }
 
@@ -202,7 +156,9 @@ function fetch_commits_via_git() {
 
                 if (fetch) {
                     if (typeof (date) == 'string' && date.toString().indexOf(cur_time.toString()) != -1) {
-                        write_done(message.split('\n').join(''));
+                        dbhelper.writeDone(message.split('\n').join(''), function(){
+                            console.log(message.split('\n').join('') + " add to done list");
+                        });
                     }
                 }
             });
@@ -214,44 +170,15 @@ function fetch_commits_via_git() {
 }
 
 function write_todo(str) {
-    var todo_path = assets_path + "todolist.txt";
-    wirte_to(todo_path, str, function () {
+    dbhelper.receiveAssignment(str, function () {
         console.log("job assigned:" + str);
     });
 }
 
 function write_done(str) {
-    var done_path = assets_path + "done_" + get_data() + ".txt";
-    var filter_check = read_file_sync(done_path);
+    dbhelper.doneAssignment(str, function(){
 
-    if (filter_check.indexOf(str) == -1) {
-        wirte_to(done_path, str, function () {
-            console.log("job done :" + str);
-
-            var todo_list = read_file_sync(assets_path + "todolist.txt").split(";");
-            var newstr = "";
-            todo_list.forEach(function (sub, index) {
-                if ((sub.indexOf(str) != -1) || (str.indexOf(sub) != -1)) {
-
-                } else {
-                    newstr += sub + ";";
-                }
-            });
-
-            execute_command(
-                "rm -f " + assets_path + "todolist.txt",
-                function (succ) {
-                    wirte_to(assets_path + "todolist.txt", newstr, function () {
-                        console.log("update todo list:" + newstr);
-                    });
-                },
-                function (err) {
-
-                });
-        });
-    } else {
-        console.log("done duplicate job:" + str);
-    }
+    });
 }
 
 function sendConfirmEmail(confirm_str) {
@@ -333,6 +260,7 @@ function sendEmail() {
     });
 }
 
+exports.getDate = get_data
 exports.sendEmail = sendEmail
 exports.readTodaysList = read_todays_list
 exports.writeDone = write_done

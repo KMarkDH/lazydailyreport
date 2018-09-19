@@ -1,6 +1,7 @@
 #!/usr/local/bin/node
 var program = require('commander');
 var utils = require('./utils')
+var dbhelper = require('./databasehelper')
 
 program
   .version('0.0.1')
