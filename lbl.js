@@ -1,10 +1,11 @@
 #!/usr/local/bin/node
 var program = require('commander');
 var utils = require('./utils')
-var dbhelper = require('./databasehelper')
 
 program
   .version('0.0.1')
+  .option('-a, --all', '查看所有工作列表')
+  .option('-b, --begin [message]', '填写今日开始的工作', '')
   .option('-m, --message [message]', '填写今日完成的工作', '')
   .option('-p, --plan [plan]', '填写明日计划完成的工作', '')
   .option('-s, --send', "发送日(周)报")
@@ -25,6 +26,17 @@ program
   if (program.message.toString().length > 0) {
     var text = program.message;
     utils.writeDone(text);
+  }
+
+  if (program.all) {
+    utils.readAllList(function(text){
+      console.log(text);
+    });
+  }
+
+  if (program.begin.toString().length > 0) {
+    var text = program.begin;
+    utils.writeStart(text);
   }
 
   if (program.list) {
