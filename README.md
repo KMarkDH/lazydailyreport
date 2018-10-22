@@ -3,8 +3,6 @@ Since I am too lazy to write a email everyday to my boss.
 
 I made a little tool to simplify the job.
 
-
-
 # installing
 
 This tool only works on macOS.
@@ -19,6 +17,8 @@ npm install commander
 npm install nodemailer
 
 npm install nodemailer-smtp-transport
+
+npm install sqlite3
 
 npm install -g pkg
 ```
@@ -40,6 +40,12 @@ Copy lbl to /usr/local/bin and run command:
 ```bash
 sudo chmod a+x /usr/local/bin/lbl
 ```
+
+Enter your_path/node_modules/sqlite3/lib/binding.you will see an auto-generated folder(s),in my case is node-v64-darwin-x64.Inside it you can find a node_sqlite3.node file,copy it to somewhere you put you library.**LBL NEED THIS FILE AND ITS PATH**
+
+Open your_path/node_modules/sqlite3/lib/sqlite3.js, chage var binding_path = binary.find(path.resolve(path.join(__dirname,'../package.json'))); to binding_path = path_where_you_put___node_sqlite3.node.
+
+If you're using mac.Just do what i do.Copy node_sqlite3.node to /usr/local/lib and set binding_path to /usr/local/lib/node_sqlite3.node;
 
 Open  terminal and enter:
 
