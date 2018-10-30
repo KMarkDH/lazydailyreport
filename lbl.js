@@ -31,25 +31,25 @@ function Archive() {
   };
 
   this.reporterConfig = {
-    address: "make@xianlai-inc.com",
-    password: "make",
-    host: "mail.xianlai-inc.com",
+    address: "",
+    password: "",
+    host: "",
     secure: true,
     secureConnection: true,
     port: 465
   };
 
   this.receiverConfig = {
-    address: "leiting@xianlai-inc.com",
-    cc: "liujinpeng@xianlai-inc.com;zhouwei@xianlai-inc.com;panwei@xianlai-inc.com"
+    address: "",
+    cc: ""
   };
 
   this.contentConfig = {
-    workDaySubject: "[项目一部-云南-客户端]马可日报-",
+    workDaySubject: "",
     workDayDone: "今日完成:",
     workDayTodo: "明日计划:",
     maxWorkTodo: 3,
-    nonWorkDaySubject: "[项目一部-云南-客户端]马可周报-",
+    nonWorkDaySubject: "",
     nonWorkDayDone: "本周完成:",
     nonWorkDayTodo: "下周计划:",
     maxNonWorkDayTodo: 7
@@ -60,8 +60,6 @@ function Archive() {
     tableName: "tasks"
   }
 };
-
-
 
 require('util').inherits(DateHelper, EventEmitter);
 
@@ -144,7 +142,7 @@ function DBHelper() {
   this.connectToDB = function (callback) {
     terminal_p.exec("cd ~&&pwd", function (err, stdout, errout) {
       if (!err) {
-        var db = new sqlite3.Database(trim(stdout) + '/Documents/' + archive.dataBaseConfig.dbName, function (err, res) {
+        var db = new sqlite3.Database(trim(stdout) + '/Documents/' + archive.dataBaseConfig.dbName, function (err) {
           if (!err) {
             db.get("select tbl_name from sqlite_master where type = 'table' and name = \'" + archive.dataBaseConfig.tableName + "\';", function (err, res) {
               if (!err) {
@@ -174,7 +172,7 @@ function DBHelper() {
   };
 
   this.isAssignmentExist = function (job, callback) {
-    this.connectToDB(function (fd) {
+    this.connectToDB(function (db) {
       db.get("select assignment from " + archive.dataBaseConfig.tableName + " where assignment = \'" + job + "\';", function (err, res) {
         if (!err) {
           if (res) {
@@ -189,8 +187,9 @@ function DBHelper() {
     });
   };
 
-  this.getMaxId = function (callback) {
-    this.connectToDB(function (db) {
+  getMaxId = function (callback) {
+    var dbhelper = new DBHelper();
+    dbhelper.connectToDB(function (db) {
       db.all("select id from " + archive.dataBaseConfig.tableName + " order by id;", function (err, arr) {
         if (arr.length > 0) {
           callback(arr[arr.length - 1].id + 1, db);
@@ -203,9 +202,9 @@ function DBHelper() {
 
   this.receiveAssignment = function (job, callback) {
 
-    this.isAssignmentExist.apply(this, job, function (exist, db) {
+    this.isAssignmentExist(job, function (exist, db) {
       if (!exist) {
-        this.getMaxId.apply(this, function (id, db) {
+        this.getMaxId(function (id, db) {
           db.run(
             "insert into " + archive.dataBaseConfig.tableName + " (id, assignment, state, date) values(" + id + ", \"" + job + "\", " + "0,\"" + dateHelper.getDate() + "\");",
             function (err) {
@@ -543,16 +542,16 @@ function lbl() {
 
   if (program.plan.toString().length > 0) {
     var text = program.plan;
-    dbHelper.receiveAssignment(text, function () {
+    dbHelper.receiveAssignment.apply(dbHelper, [text, function () {
 
-    });
+    }]);
   }
 
   if (program.message.toString().length > 0) {
     var text = program.message;
-    dbHelper.doneAssignment(text, function () {
+    dbHelper.doneAssignment.apply(dbHelper, [text, function () {
 
-    });
+    }]);
   }
 
   if (program.all) {
@@ -563,9 +562,9 @@ function lbl() {
 
   if (program.begin.toString().length > 0) {
     var text = program.begin;
-    dbHelper.startAssignment(text, function () {
+    dbHelper.startAssignment.apply(dbHelper, [text, function () {
 
-    });
+    }]);
   }
 
   if (program.list) {
