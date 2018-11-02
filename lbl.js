@@ -26,7 +26,7 @@ require('util').inherits(Archive, EventEmitter);
 
 function Archive() {
   this.gitConfig = {
-    repo: "/Users/xianlai/Documents/workspace/yunnan/project",
+    repo: "",
     commitFilter: ['no message', 'fix', 'resolve conflict', 'fix bug', 'test', 'merge', 'Fix Bug', 'uncomment']
   };
 
@@ -46,12 +46,12 @@ function Archive() {
 
   this.contentConfig = {
     workDaySubject: "",
-    workDayDone: "今日完成:",
-    workDayTodo: "明日计划:",
+    workDayDone: "",
+    workDayTodo: "",
     maxWorkTodo: 3,
     nonWorkDaySubject: "",
-    nonWorkDayDone: "本周完成:",
-    nonWorkDayTodo: "下周计划:",
+    nonWorkDayDone: "",
+    nonWorkDayTodo: "",
     maxNonWorkDayTodo: 7
   };
 
@@ -117,8 +117,8 @@ function DateHelper() {
     if (month < 10) {
       month = "0" + month;
     }
-    if (day < 10) {
-      day = "0" + day;
+    if (offset_day < 10) {
+      offset_day = "0" + offset_day;
     }
     return year + "-" + month + "-" + offset_day;
   };
@@ -339,9 +339,9 @@ function DBHelper() {
 require('util').inherits(EmailHelper, EventEmitter)
 
 function EmailHelper() {
-  var dbHelper = new DBHelper();
-  var archive = new Archive();
-  var dateHelper = new DateHelper();
+  dbHelper = new DBHelper();
+  archive = new Archive();
+  dateHelper = new DateHelper();
 
   this.readTodayList = function (all, callback) {
     if (false == dateHelper.isLastWorkDay()) {
@@ -411,12 +411,12 @@ function EmailHelper() {
         title = archive.contentConfig.nonWorkDaySubject + dateHelper.getDate();
       }
 
-      console.log("\e[31mstart \e[31msending \e[31memail...");
-      console.log("\e[31mfrom:" + archive.email_addr);
-      console.log("\e[31mto:" + archive.target);
-      console.log("\e[31mcc:" + archive.cc);
-      console.log("\e[31mtitle:" + title);
-      console.log("\e[31m" + str);
+      console.log("start sending email...");
+      console.log("from:" + archive.reporterConfig.address);
+      console.log("to:" + archive.receiverConfig.address);
+      console.log("cc:" + archive.receiverConfig.cc);
+      console.log("title:" + title);
+      console.log("" + str);
 
       var transport = nodemailer.createTransport(smtpTransport({
         host: archive.reporterConfig.host,
@@ -441,19 +441,19 @@ function EmailHelper() {
         if (error) {
           console.log(error);
         } else {
-          console.log('\e[31mEmail \e[31msent: \e[31m' + info.response);
+          console.log('Email sent: ' + info.response);
           var confirm_str = "from:" + archive.reporterConfig.address + "\n"
-            + "to:" + archive.reporterConfig.address + "\n"
-            + "cc:" + archive.reporterConfig.cc + "\n"
+            + "to:" + archive.receiverConfig.address + "\n"
+            + "cc:" + archive.receiverConfig.cc + "\n"
             + "title:" + title + "\n"
             + str;
-          this.sendConfirmEmail(confirm_str);
+          this.sendConfirmEmail(title, confirm_str);
         }
       });
     });
   };
 
-  this.sendConfirmEmail = function (str) {
+  sendConfirmEmail = function (title, str) {
     var transport = nodemailer.createTransport(smtpTransport({
       host: archive.reporterConfig.host,
       secure: archive.reporterConfig.secure,
@@ -477,7 +477,7 @@ function EmailHelper() {
       if (error) {
         console.log(error);
       } else {
-        console.log('\e[31mConfirm \e[31mEmail \e[31msent: \e[31m' + info.response);
+        console.log('Confirm Email sent: ' + info.response);
       }
     });
   };
@@ -542,16 +542,16 @@ function lbl() {
 
   if (program.plan.toString().length > 0) {
     var text = program.plan;
-    dbHelper.receiveAssignment.apply(dbHelper, [text, function () {
+    dbHelper.receiveAssignment(text, function () {
 
-    }]);
+    });
   }
 
   if (program.message.toString().length > 0) {
     var text = program.message;
-    dbHelper.doneAssignment.apply(dbHelper, [text, function () {
+    dbHelper.doneAssignment(text, function () {
 
-    }]);
+    });
   }
 
   if (program.all) {
@@ -562,9 +562,9 @@ function lbl() {
 
   if (program.begin.toString().length > 0) {
     var text = program.begin;
-    dbHelper.startAssignment.apply(dbHelper, [text, function () {
+    dbHelper.startAssignment(text, function () {
 
-    }]);
+    });
   }
 
   if (program.list) {
